@@ -1,0 +1,8 @@
+This is a test streaming response file.
+It contains multiple lines to demonstrate chunked streaming.
+Line 1: Hello, Unity!
+Line 2: This server streams data in small chunks.
+Line 3: You can use this file to test partial/streamed reads.
+Line 4: End of message.
+
+

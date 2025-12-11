@@ -1,0 +1,53 @@
+# This .gitignore file is for Unity projects.
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# User-specific files
+*.swp
+*.swo
+*.tmp
+*.userprefs
+
+# Unity-generated files
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Mm]emoryCaptures/
+
+# Asset meta files
+*.pidb.meta
+*.pdb.meta
+
+# Auto-generated VS/JetBrains Rider project files
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+
+# Unity3D generated file on crash reports
+sysinfo.txt
+
+# Gradle cache
+.gradle/
+
+# Crashlytics generated files
+crashlytics-build.properties
+
+# Packed plugins
+*.apk
+*.aab
+*.unitypackage
+
+# Exclude files created by collaboration tools
+.CollabIgnore
