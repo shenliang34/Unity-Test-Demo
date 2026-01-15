@@ -145,6 +145,7 @@ public class Main : MonoBehaviour
     {
         const string unityTag = "UnityWebView";
         int buttonSizePx = Mathf.RoundToInt(48f * Screen.dpi / 160f); // ⭐ 提前计算
+        int marginPx = Mathf.RoundToInt(16f * Screen.dpi / 160f); // ⭐ 提前计算
         activity.Call("runOnUiThread", new AndroidJavaRunnable(() =>
         {
             AndroidJavaClass logClass = new AndroidJavaClass("android.util.Log");
@@ -194,18 +195,8 @@ public class Main : MonoBehaviour
             // 设置布局参数
             int matchParent = -1; // ViewGroup.LayoutParams.MATCH_PARENT
             int wrapContent = -2; // ViewGroup.LayoutParams.WRAP_CONTENT
-
-            // 关闭按钮的布局参数
-            // AndroidJavaObject buttonParams = new AndroidJavaObject(
-            //     "android.widget.LinearLayout$LayoutParams", matchParent, wrapContent);
-            // linearLayout.Call("addView", closeButton, buttonParams);
-            // 创建 FrameLayout 作为主容器
-            AndroidJavaObject frameLayout = new AndroidJavaObject("android.widget.FrameLayout", activity);
             logClass.CallStatic<int>("d", unityTag, "Close button added to layout.");
-            // WebView 的布局参数
-            AndroidJavaObject webViewParams = new AndroidJavaObject(
-                "android.widget.FrameLayout$LayoutParams", matchParent, matchParent);
-            frameLayout.Call("addView", webView, webViewParams);
+            
             logClass.CallStatic<int>("d", unityTag, "Close button PNG data length: " + (_closeBtnPngData != null ? _closeBtnPngData.Length : 0));
             if (_closeBtnPngData != null && _closeBtnPngData.Length > 0)
             {
@@ -231,16 +222,17 @@ public class Main : MonoBehaviour
                 // 去掉内边距
                 imageButton.Call("setPadding", 0, 0, 0, 0);
                 
-                // 设置明确的尺寸（例如 48dp）
+                // ImageButton 的布局参数 - 独占一行,居中显示
                 AndroidJavaObject imageBtnParams = new AndroidJavaObject(
-                    "android.widget.FrameLayout$LayoutParams", buttonSizePx, buttonSizePx);
-                // 设置 Gravity 为右上角 (TOP | END)
+                    "android.widget.LinearLayout$LayoutParams", wrapContent, wrapContent);
+                // 设置 Gravity 为右对齐
                 AndroidJavaClass gravityClass = new AndroidJavaClass("android.view.Gravity");
-                int gravityTopEnd = gravityClass.GetStatic<int>("TOP") | gravityClass.GetStatic<int>("END");
-                imageBtnParams.Set<int>("gravity", gravityTopEnd);
-                
-                // linearLayout.Call("addView", imageButton, imageBtnParams);
-                frameLayout.Call("addView", imageButton, imageBtnParams);
+                int gravityEnd = gravityClass.GetStatic<int>("END");
+                imageBtnParams.Set<int>("gravity", gravityEnd);
+                // 设置边距
+                imageBtnParams.Call("setMargins", marginPx, marginPx, marginPx, marginPx);
+                //添加
+                linearLayout.Call("addView", imageButton, imageBtnParams);
                 //打印sizePx
                 logClass.CallStatic<int>("d", unityTag, "Close button size set to: " + buttonSizePx + "px");
                 
@@ -252,9 +244,9 @@ public class Main : MonoBehaviour
             }   
 
             // WebView 的布局参数 (权重为1，填充剩余空间)
-            // AndroidJavaObject webViewParams = new AndroidJavaObject(
-            //     "android.widget.LinearLayout$LayoutParams", matchParent, 0, 1.0f);
-            // linearLayout.Call("addView", webView, webViewParams);
+            AndroidJavaObject webViewParams = new AndroidJavaObject(
+                "android.widget.LinearLayout$LayoutParams", matchParent, 0, 1.0f);
+            linearLayout.Call("addView", webView, webViewParams);
             //
             // // 设置关闭按钮点击事件
             // closeButton.Call("setOnClickListener", new ViewOnClickListener(() => {
@@ -262,10 +254,8 @@ public class Main : MonoBehaviour
             //     dialog.Call("dismiss");
             // }));
 
-            // 设置 Dialog 内容
-            // dialog.Call("setContentView", linearLayout);
             // 设置 Dialog 内容为 FrameLayout
-            dialog.Call("setContentView", frameLayout);
+            dialog.Call("setContentView", linearLayout);
             dialog.Call("setCancelable", true);
 
             // 获取窗口并设置全屏
