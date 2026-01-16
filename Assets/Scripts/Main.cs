@@ -25,8 +25,15 @@ public class Main : MonoBehaviour
         }
     }
     private byte[] _closeBtnPngData;
+#if UNITY_ANDROID
+    private AndroidWebViewHelper _webViewHelper;
+#endif
+
     private void Awake()
     {
+#if UNITY_ANDROID
+        _webViewHelper = new AndroidWebViewHelper();
+#endif
         GetPNGData();
     }
     
@@ -66,6 +73,14 @@ public class Main : MonoBehaviour
         Destroy(tex);
 
         Debug.Log($"Close button loaded: {_closeBtnPngData.Length} bytes");
+        
+#if UNITY_ANDROID
+        // 将 PNG 数据传递给 WebViewHelper
+        if (_webViewHelper != null && _closeBtnPngData != null)
+        {
+            _webViewHelper.SetCloseButtonPngData(_closeBtnPngData);
+        }
+#endif
     }
 
 
@@ -140,168 +155,6 @@ public class Main : MonoBehaviour
         }
         catch { /* 忽略 Toast 显示错误 */ }
     }
-    
-    private void OpenAndroidWebViewInternal(string url, AndroidJavaObject activity)
-    {
-        const string unityTag = "UnityWebView";
-        int buttonSizePx = Mathf.RoundToInt(48f * Screen.dpi / 160f); // ⭐ 提前计算
-        int marginPx = Mathf.RoundToInt(16f * Screen.dpi / 160f); // ⭐ 提前计算
-        activity.Call("runOnUiThread", new AndroidJavaRunnable(() =>
-        {
-            AndroidJavaClass logClass = new AndroidJavaClass("android.util.Log");
-            logClass.CallStatic<int>("d", unityTag, "Opening WebView dialog for URL: " + url);
-            
-            // 使用全屏主题: android.R.style.Theme_Black_NoTitleBar_Fullscreen
-            AndroidJavaClass androidR = new AndroidJavaClass("android.R$style");
-            int fullscreenTheme = androidR.GetStatic<int>("Theme_Black_NoTitleBar_Fullscreen");
-            AndroidJavaObject dialog = new AndroidJavaObject("android.app.Dialog", activity, fullscreenTheme);
-            
-            logClass.CallStatic<int>("d", unityTag, "Dialog created with fullscreen theme.");
-            // 创建主布局 LinearLayout
-            AndroidJavaObject linearLayout = new AndroidJavaObject("android.widget.LinearLayout", activity);
-            linearLayout.Call("setOrientation", 1); // VERTICAL = 1
-
-            // 创建关闭按钮
-            AndroidJavaObject closeButton = new AndroidJavaObject("android.widget.Button", activity);
-            closeButton.Call("setText", "关闭");
-            logClass.CallStatic<int>("d", unityTag, "Close button created.");
-            
-            // 创建 WebView
-            AndroidJavaObject webView = new AndroidJavaObject("android.webkit.WebView", activity);
-            
-            logClass.CallStatic<int>("d", unityTag, "WebView created.");
-            // 获取 WebSettings 并配置
-            AndroidJavaObject webSettings = webView.Call<AndroidJavaObject>("getSettings");
-            webSettings.Call("setJavaScriptEnabled", true);
-            webSettings.Call("setDomStorageEnabled", true);
-            webSettings.Call("setLoadWithOverviewMode", true);
-            webSettings.Call("setUseWideViewPort", true);
-            webSettings.Call("setSupportZoom", true);
-            webSettings.Call("setBuiltInZoomControls", true);
-            webSettings.Call("setDisplayZoomControls", false);
-            
-            logClass.CallStatic<int>("d", unityTag, "WebView settings configured.");
-
-            // 设置 WebViewClient 防止跳转到外部浏览器
-            AndroidJavaObject webViewClient = new AndroidJavaObject("android.webkit.WebViewClient");
-            webView.Call("setWebViewClient", webViewClient);
-            
-            logClass.CallStatic<int>("d", unityTag, "WebViewClient set.");
-
-            // 加载 URL
-            webView.Call("loadUrl", url);
-            logClass.CallStatic<int>("d", unityTag, "URL loaded in WebView: " + url);
-
-            // 设置布局参数
-            int matchParent = -1; // ViewGroup.LayoutParams.MATCH_PARENT
-            int wrapContent = -2; // ViewGroup.LayoutParams.WRAP_CONTENT
-            logClass.CallStatic<int>("d", unityTag, "Close button added to layout.");
-            
-            logClass.CallStatic<int>("d", unityTag, "Close button PNG data length: " + (_closeBtnPngData != null ? _closeBtnPngData.Length : 0));
-            if (_closeBtnPngData != null && _closeBtnPngData.Length > 0)
-            {
-                //创建 ImageButton 并设置图片
-                AndroidJavaObject imageButton = new AndroidJavaObject("android.widget.ImageButton", activity);
-                
-                // 创建 BitmapFactory
-                AndroidJavaClass bitmapFactory = new AndroidJavaClass("android.graphics.BitmapFactory");
-                AndroidJavaObject bitmap = bitmapFactory.CallStatic<AndroidJavaObject>("decodeByteArray", _closeBtnPngData, 0, _closeBtnPngData.Length);
-                
-                if (bitmap != null)
-                {
-                    //设置图片
-                    imageButton.Call("setImageBitmap", bitmap);
-                }
-                logClass.CallStatic<int>("d", unityTag, "Close button image set from PNG data.");
-                
-                // 去掉默认背景
-                AndroidJavaClass colorClass = new AndroidJavaClass("android.graphics.Color");
-                int transparent = colorClass.GetStatic<int>("TRANSPARENT");
-                imageButton.Call("setBackgroundColor", transparent);
-                
-                // 去掉内边距
-                imageButton.Call("setPadding", 0, 0, 0, 0);
-                
-                // ImageButton 的布局参数 - 独占一行,居中显示
-                AndroidJavaObject imageBtnParams = new AndroidJavaObject(
-                    "android.widget.LinearLayout$LayoutParams", wrapContent, wrapContent);
-                // 设置 Gravity 为右对齐
-                AndroidJavaClass gravityClass = new AndroidJavaClass("android.view.Gravity");
-                int gravityEnd = gravityClass.GetStatic<int>("END");
-                imageBtnParams.Set<int>("gravity", gravityEnd);
-                // 设置边距
-                imageBtnParams.Call("setMargins", marginPx, marginPx, marginPx, marginPx);
-                //添加
-                linearLayout.Call("addView", imageButton, imageBtnParams);
-                //打印sizePx
-                logClass.CallStatic<int>("d", unityTag, "Close button size set to: " + buttonSizePx + "px");
-                
-                // 设置点击事件
-                imageButton.Call("setOnClickListener", new ViewOnClickListener(() => {
-                    webView.Call("destroy");
-                    dialog.Call("dismiss");
-                }));
-            }   
-
-            // WebView 的布局参数 (权重为1，填充剩余空间)
-            AndroidJavaObject webViewParams = new AndroidJavaObject(
-                "android.widget.LinearLayout$LayoutParams", matchParent, 0, 1.0f);
-            linearLayout.Call("addView", webView, webViewParams);
-            //
-            // // 设置关闭按钮点击事件
-            // closeButton.Call("setOnClickListener", new ViewOnClickListener(() => {
-            //     webView.Call("destroy");
-            //     dialog.Call("dismiss");
-            // }));
-
-            // 设置 Dialog 内容为 FrameLayout
-            dialog.Call("setContentView", linearLayout);
-            dialog.Call("setCancelable", true);
-
-            // 获取窗口并设置全屏
-            AndroidJavaObject window = dialog.Call<AndroidJavaObject>("getWindow");
-            if (window != null)
-            {
-                // 设置背景为白色
-                AndroidJavaClass colorClass = new AndroidJavaClass("android.graphics.Color");
-                int whiteColor = colorClass.GetStatic<int>("WHITE");
-                AndroidJavaObject colorDrawable = new AndroidJavaObject("android.graphics.drawable.ColorDrawable", whiteColor);
-                window.Call("setBackgroundDrawable", colorDrawable);
-                
-                // 设置窗口标志为全屏
-                AndroidJavaClass windowManagerLayoutParams = new AndroidJavaClass("android.view.WindowManager$LayoutParams");
-                int flagFullscreen = windowManagerLayoutParams.GetStatic<int>("FLAG_FULLSCREEN");
-                window.Call("setFlags", flagFullscreen, flagFullscreen);
-            }
-
-            // 显示对话框
-            dialog.Call("show");
-            
-            // 在 show() 之后设置窗口大小以确保全屏
-            if (window != null)
-            {
-                window.Call("setLayout", matchParent, matchParent);
-            }
-        }));
-    }
-
-    // View.OnClickListener 实现类
-    private class ViewOnClickListener : AndroidJavaProxy
-    {
-        private System.Action _onClick;
-
-        public ViewOnClickListener(System.Action onClick) 
-            : base("android.view.View$OnClickListener")
-        {
-            _onClick = onClick;
-        }
-
-        public void onClick(AndroidJavaObject view)
-        {
-            Debug.Log("Close button clicked");
-            _onClick?.Invoke();
-        }
-    }
 #endif
 
     private void OpenFloatingWebView(string url)
@@ -321,18 +174,13 @@ public class Main : MonoBehaviour
         Debug.Log("Opening WebView: " + url);
 
 #if UNITY_ANDROID && !UNITY_EDITOR
-        try
+        if (_webViewHelper != null)
         {
-            AndroidJavaClass unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
-            AndroidJavaObject activity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
-            if (activity != null)
-            {
-                OpenAndroidWebViewInternal(url, activity);
-            }
+            _webViewHelper.OpenWebView(url);
         }
-        catch (System.Exception e)
+        else
         {
-            Debug.LogError("Error opening WebView: " + e.Message);
+            Debug.LogError("WebViewHelper is not initialized");
         }
 #elif UNITY_STANDALONE_WIN
         OpenWinFormsBrowser(url);
